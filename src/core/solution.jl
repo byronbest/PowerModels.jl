@@ -238,7 +238,7 @@ function add_setpoint(
             sol_item[param_name] = default_value(item)
             try
                 variable = extract_var(var(pm, pm.cnw, variable_symbol), idx, item)
-                sol_item[param_name] = scale(JuMP.result_value(variable), item, 1)
+                sol_item[param_name] = scale(JuMP.value(variable), item, 1)
             catch
             end
         else
@@ -248,7 +248,7 @@ function add_setpoint(
             for conductor in conductor_ids(pm)
                 try
                     variable = extract_var(var(pm, variable_symbol, cnd=conductor), idx, item)
-                    sol_item[param_name][cnd_idx] = scale(JuMP.result_value(variable), item, conductor)
+                    sol_item[param_name][cnd_idx] = scale(JuMP.value(variable), item, conductor)
                 catch
                 end
                 cnd_idx += 1
@@ -324,7 +324,7 @@ function add_dual(
             sol_item[param_name] = default_value(item)
             try
                 constraint = extract_con(var(pm, pm.cnw, con_symbol), idx, item)
-                sol_item[param_name] = scale(JuMP.result_dual(constraint), item, 1)
+                sol_item[param_name] = scale(JuMP.dual(constraint), item, 1)
             catch
             end
         else
@@ -334,7 +334,7 @@ function add_dual(
             for conductor in conductor_ids(pm)
                 try
                     constraint = extract_con(con(pm, con_symbol, cnd=conductor), idx, item)
-                    sol_item[param_name][cnd_idx] = scale(JuMP.result_dual(constraint), item, conductor)
+                    sol_item[param_name][cnd_idx] = scale(JuMP.dual(constraint), item, conductor)
                 catch
                     info(LOGGER, "No constraint: $(con_symbol), $(idx)")
                 end

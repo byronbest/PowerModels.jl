@@ -65,6 +65,9 @@ const LOGGER = getlogger(@__MODULE__)
 # NOTE: If this line is not included then the precompiled `PowerModels.LOGGER` won't be registered at runtime.
 __init__() = Memento.register(LOGGER)
 
+# export so users don't need to import JuMP
+export with_optimizer
+
 include("io/matpower.jl")
 include("io/common.jl")
 include("io/pti.jl")
