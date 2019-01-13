@@ -33,9 +33,9 @@ version = "1.4.0"
 
 [[DataStructures]]
 deps = ["InteractiveUtils", "OrderedCollections", "Random", "Serialization", "Test"]
-git-tree-sha1 = "8fc6e166e24fda04b2b648d4260cdad241788c54"
+git-tree-sha1 = "ca971f03e146cf144a9e2f2ce59674f5bf0e8038"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
-version = "0.14.0"
+version = "0.15.0"
 
 [[Dates]]
 deps = ["Printf"]
@@ -75,7 +75,7 @@ version = "0.9.0"
 
 [[InfrastructureModels]]
 deps = ["Compat", "JuMP", "LinearAlgebra", "MathOptInterface", "Memento"]
-git-tree-sha1 = "d2b42be3cdd91deab63d897cb7b1f426ec8038de"
+git-tree-sha1 = "29a07e7c85f1c8317d57e7bc6200e96e686e5f75"
 repo-rev = "moi"
 repo-url = "https://github.com/lanl-ansi/InfrastructureModels.jl.git"
 uuid = "e8e45514-c753-11e8-2a1b-cd93cb9d98d1"
@@ -202,9 +202,9 @@ version = "0.7.2"
 
 [[StaticArrays]]
 deps = ["InteractiveUtils", "LinearAlgebra", "Random", "Statistics", "Test"]
-git-tree-sha1 = "97c4bf0f647488dd7ac01ea12be5885f88762938"
+git-tree-sha1 = "1eb114d6e23a817cd3e99abc3226190876d7c898"
 uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "0.10.0"
+version = "0.10.2"
 
 [[Statistics]]
 deps = ["LinearAlgebra", "SparseArrays"]
@@ -222,9 +222,9 @@ uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [[TimeZones]]
 deps = ["Compat", "EzXML", "Mocking", "Nullables"]
-git-tree-sha1 = "4a4ab113913e19ad62b67e6c5c056509eac00c19"
+git-tree-sha1 = "bd6bd042be107147824eb583aed41d027b69704b"
 uuid = "f269a46b-ccf7-5d73-abea-4c690281aa53"
-version = "0.8.2"
+version = "0.8.4"
 
 [[URIParser]]
 deps = ["Test", "Unicode"]
