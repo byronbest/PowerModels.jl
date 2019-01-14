@@ -28,7 +28,7 @@ using JuMP
 
 # default setup for solvers
 ipopt_solver = with_optimizer(Ipopt.Optimizer, tol=1e-6, print_level=0)
-#cbc_solver = with_optimizer(Cbc.Optimizer)
+cbc_solver = with_optimizer(Cbc.Optimizer)
 #juniper_solver = JuniperSolver(IpoptSolver(tol=1e-4, print_level=0), mip_solver=cbc_solver, log_levels=[])
 #juniper_solver = JuniperSolver(IpoptSolver(tol=1e-4, print_level=0), mip_solver=cbc_solver)
 #pavito_solver = PavitoSolver(mip_solver=cbc_solver, cont_solver=ipopt_solver, mip_solver_drives=false, log_level=0)
@@ -59,6 +59,8 @@ include("common.jl")
     include("opf.jl")
 
     include("opf-var.jl")
+
+    include("opf-obj.jl")
 
     # needs MI solvers
     #include("ots.jl")

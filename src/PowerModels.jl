@@ -23,6 +23,7 @@ if VERSION < v"0.7.0-"
     import Compat: eachmatch
     import Compat: undef
     import Compat: pairs
+    import Compat: stdout
 
     LinearAlgebra = Compat.LinearAlgebra
 
@@ -65,8 +66,17 @@ const LOGGER = getlogger(@__MODULE__)
 # NOTE: If this line is not included then the precompiled `PowerModels.LOGGER` won't be registered at runtime.
 __init__() = Memento.register(LOGGER)
 
+
 # export so users don't need to import JuMP
 export with_optimizer
+
+"Suppresses information and warning messages output by PowerModels, for fine grained control use the Memento package"
+function silence()
+    info(LOGGER, "Suppressing information and warning messages for the rest of this session.  Use the Memento package for more fine-grained control of logging.")
+    setlevel!(getlogger(InfrastructureModels), "error")
+    setlevel!(getlogger(PowerModels), "error")
+end
+
 
 include("io/matpower.jl")
 include("io/common.jl")

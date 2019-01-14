@@ -191,28 +191,17 @@ function psse2pm_generator!(pm_data::Dict, pti_data::Dict, import_all::Bool)
             sub_data["qg"] = pop!(gen, "QG")
             sub_data["vg"] = pop!(gen, "VS")
             sub_data["mbase"] = pop!(gen, "MBASE")
-            sub_data["ramp_agc"] = 0.0
-            sub_data["ramp_q"] = 0.0
-            sub_data["ramp_10"] = 0.0
-            sub_data["ramp_30"] = 0.0
             sub_data["pmin"] = pop!(gen, "PB")
             sub_data["pmax"] = pop!(gen, "PT")
-            sub_data["apf"] = 0.0
             sub_data["qmin"] = pop!(gen, "QB")
             sub_data["qmax"] = pop!(gen, "QT")
-            sub_data["pc1"] = 0.0
-            sub_data["pc2"] = 0.0
-            sub_data["qc1min"] = 0.0
-            sub_data["qc1max"] = 0.0
-            sub_data["qc2min"] = 0.0
-            sub_data["qc2max"] = 0.0
 
             # Default Cost functions
             sub_data["model"] = 2
             sub_data["startup"] = 0.0
             sub_data["shutdown"] = 0.0
-            sub_data["ncost"] = 3
-            sub_data["cost"] = [0.0, 1.0, 0.0]
+            sub_data["ncost"] = 2
+            sub_data["cost"] = [1.0, 0.0]
 
             sub_data["source_id"] = [sub_data["gen_bus"], pop!(gen, "ID")]
             sub_data["index"] = length(pm_data["gen"]) + 1
@@ -255,7 +244,7 @@ function psse2pm_bus!(pm_data::Dict, pti_data::Dict, import_all::Bool)
                 sub_data["vmin"] = 0.9
             end
 
-            sub_data["source_id"] = [sub_data["bus_i"], sub_data["name"]]
+            sub_data["source_id"] = ["$(bus["I"])"]
             sub_data["index"] = pop!(bus, "I")
 
             import_remaining!(sub_data, bus, import_all)
@@ -674,7 +663,7 @@ Converts PSS(R)E-style data parsed from a PTI raw file, passed by `pti_data`
 into a format suitable for use internally in PowerModels. Imports all remaining
 data from the PTI file if `import_all` is true (Default: false).
 """
-function parse_psse(pti_data::Dict; import_all=false)::Dict
+function parse_psse(pti_data::Dict; import_all=false, validate=true)::Dict
     pm_data = Dict{String,Any}()
 
     rev = pop!(pti_data["CASE IDENTIFICATION"][1], "REV")
@@ -715,16 +704,18 @@ function parse_psse(pti_data::Dict; import_all=false)::Dict
         end
     end
 
-    check_network_data(pm_data)
+    if validate
+        check_network_data(pm_data)
+    end
 
     return pm_data
 end
 
 
 "Parses directly from file"
-function parse_psse(filename::String; import_all=false)::Dict
+function parse_psse(filename::String; kwargs...)::Dict
     pm_data = open(filename) do f
-        parse_psse(f; import_all=import_all)
+        parse_psse(f; kwargs...)
     end
 
     return pm_data
@@ -732,8 +723,8 @@ end
 
 
 "Parses directly from iostream"
-function parse_psse(io::IO; import_all=false)::Dict
+function parse_psse(io::IO; kwargs...)::Dict
     pti_data = parse_pti(io)
 
-    return parse_psse(pti_data; import_all=import_all)
+    return parse_psse(pti_data; kwargs...)
 end

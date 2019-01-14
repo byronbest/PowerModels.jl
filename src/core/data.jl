@@ -127,23 +127,69 @@ function check_keys(data, keys)
 end
 
 
-"prints the text summary for a data file or dictionary to STDOUT"
+"prints the text summary for a data file or dictionary to stdout"
 function print_summary(obj::Union{String, Dict{String,Any}}; kwargs...)
-    summary(STDOUT, obj; kwargs...)
+    summary(stdout, obj; kwargs...)
 end
 
 
 "prints the text summary for a data file to IO"
 function summary(io::IO, file::String; kwargs...)
     data = parse_file(file)
-    InfrastructureModels.summary(io, data; kwargs...)
+    summary(io, data; kwargs...)
     return data
 end
 
 
+pm_component_types_order = Dict(
+    "bus" => 1.0, "load" => 2.0, "shunt" => 3.0, "gen" => 4.0, "storage" => 5.0,
+    "branch" => 6.0, "dcline" => 7.0
+)
+
+pm_component_parameter_order = Dict(
+    "bus_i" => 1.0, "load_bus" => 2.0, "shunt_bus" => 3.0, "gen_bus" => 4.0,
+    "storage_bus" => 5.0, "f_bus" => 6.0, "t_bus" => 7.0,
+
+    "bus_name" => 9.1, "base_kv" => 9.2, "bus_type" => 9.3,
+
+    "vm" => 10.0, "va" => 11.0,
+    "pd" => 20.0, "qd" => 21.0,
+    "gs" => 30.0, "bs" => 31.0,
+    "pg" => 40.0, "qg" => 41.0, "vg" => 42.0, "mbase" => 43.0,
+    "energy" => 44.0,
+    "br_r" => 50.0, "br_x" => 51.0, "g_fr" => 52.0, "b_fr" => 53.0,
+    "g_to" => 54.0, "b_to" => 55.0, "tap" => 56.0, "shift" => 57.0,
+    "vf" => 58.1, "pf" => 58.2, "qf" => 58.3,
+    "vt" => 58.4, "pt" => 58.5, "qt" => 58.6,
+    "loss0" => 58.7, "loss1" => 59.8,
+
+    "vmin" => 60.0, "vmax" => 61.0,
+    "pmin" => 62.0, "pmax" => 63.0,
+    "qmin" => 64.0, "qmax" => 65.0,
+    "rate_a" => 66.0, "rate_b" => 67.0, "rate_c" => 68.0,
+    "pminf" => 69.0, "pmaxf" => 70.0, "qminf" => 71.0, "qmaxf" => 72.0,
+    "pmint" => 73.0, "pmaxt" => 74.0, "qmint" => 75.0, "qmaxt" => 76.0,
+    "energy_rating" => 77.01, "charge_rating" => 77.02,
+    "discharge_rating" => 77.03, "charge_efficiency" => 77.04,
+    "discharge_efficiency" => 77.05, "thermal_rating" => 77.06,
+    "qmin" => 77.07, "qmax" => 77.08, "qmin" => 77.09, "qmax" => 77.10,
+    "r" => 77.11, "x" => 77.12, "standby_loss" => 77.13,
+
+    "status" => 80.0, "gen_status" => 81.0, "br_status" => 82.0,
+
+    "model" => 90.0, "ncost" => 91.0, "cost" => 92.0, "startup" => 93.0, "shutdown" => 94.0
+)
+
+pm_component_status_parameters = Set(["status", "gen_status", "br_status"])
+
+
 "prints the text summary for a data dictionary to IO"
 function summary(io::IO, data::Dict{String,Any}; kwargs...)
-    InfrastructureModels.summary(io, data; kwargs...)
+    InfrastructureModels.summary(io, data; 
+        component_types_order = pm_component_types_order,
+        component_parameter_order = pm_component_parameter_order,
+        component_status_parameters = pm_component_status_parameters,
+        kwargs...)
 end
 
 
@@ -497,6 +543,9 @@ function check_voltage_angle_differences(data::Dict{String,Any}, default_pad = 1
     end
 
     @assert("per_unit" in keys(data) && data["per_unit"])
+    default_pad_deg = round(rad2deg(default_pad), digits=2)
+
+    modified = Set{Int}()
 
     for c in 1:get(data, "conductors", 1)
         cnd_str = haskey(data, "conductors") ? ", conductor $(c)" : ""
@@ -505,26 +554,27 @@ function check_voltage_angle_differences(data::Dict{String,Any}, default_pad = 1
             angmax = branch["angmax"][c]
 
             if angmin <= -pi/2
-                warn(LOGGER, "this code only supports angmin values in -90 deg. to 90 deg., tightening the value on branch $i$(cnd_str) from $(rad2deg(angmin)) to -$(rad2deg(default_pad)) deg.")
+                warn(LOGGER, "this code only supports angmin values in -90 deg. to 90 deg., tightening the value on branch $i$(cnd_str) from $(rad2deg(angmin)) to -$(default_pad_deg) deg.")
                 if haskey(data, "conductors")
                     branch["angmin"][c] = -default_pad
                 else
                     branch["angmin"] = -default_pad
                 end
+                push!(modified, branch["index"])
             end
 
             if angmax >= pi/2
-                warn(LOGGER, "this code only supports angmax values in -90 deg. to 90 deg., tightening the value on branch $i$(cnd_str) from $(rad2deg(angmax)) to $(rad2deg(default_pad)) deg.")
+                warn(LOGGER, "this code only supports angmax values in -90 deg. to 90 deg., tightening the value on branch $i$(cnd_str) from $(rad2deg(angmax)) to $(default_pad_deg) deg.")
                 if haskey(data, "conductors")
                     branch["angmax"][c] = default_pad
                 else
                     branch["angmax"] = default_pad
                 end
-
+                push!(modified, branch["index"])
             end
 
             if angmin == 0.0 && angmax == 0.0
-                warn(LOGGER, "angmin and angmax values are 0, widening these values on branch $i$(cnd_str) to +/- $(rad2deg(default_pad)) deg.")
+                warn(LOGGER, "angmin and angmax values are 0, widening these values on branch $i$(cnd_str) to +/- $(default_pad_deg) deg.")
                 if haskey(data, "conductors")
                     branch["angmin"][c] = -default_pad
                     branch["angmax"][c] =  default_pad
@@ -532,9 +582,12 @@ function check_voltage_angle_differences(data::Dict{String,Any}, default_pad = 1
                     branch["angmin"] = -default_pad
                     branch["angmax"] =  default_pad
                 end
+                push!(modified, branch["index"])
             end
         end
     end
+
+    return modified
 end
 
 
@@ -546,6 +599,8 @@ function check_thermal_limits(data::Dict{String,Any})
 
     @assert("per_unit" in keys(data) && data["per_unit"])
     mva_base = data["baseMVA"]
+
+    modified = Set{Int}()
 
     branches = [branch for branch in values(data["branch"])]
     if haskey(data, "ne_branch")
@@ -584,16 +639,20 @@ function check_thermal_limits(data::Dict{String,Any})
                     new_rate = min(new_rate, branch["c_rating_a"][c]*m_vmax)
                 end
 
-                warn(LOGGER, "this code only supports positive rate_a values, changing the value on branch $(branch["index"])$(cnd_str) to $(mva_base*new_rate)")
+                warn(LOGGER, "this code only supports positive rate_a values, changing the value on branch $(branch["index"])$(cnd_str) to $(round(mva_base*new_rate, digits=4))")
 
                 if haskey(data, "conductors")
                     branch["rate_a"][c] = new_rate
                 else
                     branch["rate_a"] = new_rate
                 end
+
+                push!(modified, branch["index"])
             end
         end
     end
+
+    return modified
 end
 
 
@@ -605,6 +664,8 @@ function check_current_limits(data::Dict{String,Any})
 
     @assert("per_unit" in keys(data) && data["per_unit"])
     mva_base = data["baseMVA"]
+
+    modified = Set{Int}()
 
     branches = [branch for branch in values(data["branch"])]
     if haskey(data, "ne_branch")
@@ -652,9 +713,13 @@ function check_current_limits(data::Dict{String,Any})
                 else
                     branch["c_rating_a"] = new_c_rating
                 end
+
+                push!(modified, branch["index"])
             end
         end
     end
+
+    return modified
 end
 
 
@@ -663,6 +728,8 @@ function check_branch_directions(data::Dict{String,Any})
     if InfrastructureModels.ismultinetwork(data)
         error("check_branch_directions does not yet support multinetwork data")
     end
+
+    modified = Set{Int}()
 
     orientations = Set()
     for (i, branch) in data["branch"]
@@ -684,11 +751,15 @@ function check_branch_directions(data::Dict{String,Any})
             branch["shift"] = -branch_orginal["shift"]
             branch["angmin"] = -branch_orginal["angmax"]
             branch["angmax"] = -branch_orginal["angmin"]
+
+            push!(modified, branch["index"])
         else
             push!(orientations, orientation)
         end
 
     end
+
+    return modified
 end
 
 
@@ -773,6 +844,8 @@ function check_transformer_parameters(data::Dict{String,Any})
 
     @assert("per_unit" in keys(data) && data["per_unit"])
 
+    modified = Set{Int}()
+
     for (i, branch) in data["branch"]
         if !haskey(branch, "tap")
             warn(LOGGER, "branch found without tap value, setting a tap to 1.0")
@@ -781,6 +854,7 @@ function check_transformer_parameters(data::Dict{String,Any})
             else
                 branch["tap"] = 1.0
             end
+            push!(modified, branch["index"])
         else
             for c in 1:get(data, "conductors", 1)
                 cnd_str = haskey(data, "conductors") ? " on conductor $(c)" : ""
@@ -791,6 +865,7 @@ function check_transformer_parameters(data::Dict{String,Any})
                     else
                         branch["tap"] = 1.0
                     end
+                    push!(modified, branch["index"])
                 end
             end
         end
@@ -801,8 +876,11 @@ function check_transformer_parameters(data::Dict{String,Any})
             else
                 branch["shift"] = 0.0
             end
+            push!(modified, branch["index"])
         end
     end
+
+    return modified
 end
 
 
@@ -868,6 +946,7 @@ function check_storage_parameters(data::Dict{String,Any})
             warn(LOGGER, "storage unit $(strg["index"]) has standby losses but zero initial energy.  This can lead to model infeasiblity.")
         end
     end
+
 end
 
 
@@ -876,6 +955,8 @@ function check_bus_types(data::Dict{String,Any})
     if InfrastructureModels.ismultinetwork(data)
         error("check_bus_types does not yet support multinetwork data")
     end
+
+    modified = Set{Int}()
 
     bus_gens = Dict((i, []) for (i,bus) in data["bus"])
 
@@ -893,15 +974,19 @@ function check_bus_types(data::Dict{String,Any})
             if bus_gens_count == 0 && bus["bus_type"] != 1
                 warn(LOGGER, "no active generators found at bus $(bus["bus_i"]), updating to bus type from $(bus["bus_type"]) to 1")
                 bus["bus_type"] = 1
+                push!(modified, bus["index"])
             end
 
             if bus_gens_count != 0 && bus["bus_type"] != 2
                 warn(LOGGER, "active generators found at bus $(bus["bus_i"]), updating to bus type from $(bus["bus_type"]) to 2")
                 bus["bus_type"] = 2
+                push!(modified, bus["index"])
             end
 
         end
     end
+
+    return modified
 end
 
 
@@ -914,6 +999,8 @@ function check_dcline_limits(data::Dict{String,Any})
     @assert("per_unit" in keys(data) && data["per_unit"])
     mva_base = data["baseMVA"]
 
+    modified = Set{Int}()
+
     for c in 1:get(data, "conductors", 1)
         cnd_str = haskey(data, "conductors") ? ", conductor $(c)" : ""
         for (i, dcline) in data["dcline"]
@@ -925,6 +1012,7 @@ function check_dcline_limits(data::Dict{String,Any})
                 else
                     dcline["loss0"] = new_rate
                 end
+                push!(modified, dcline["index"])
             end
 
             if dcline["loss0"][c] >= dcline["pmaxf"][c]*(1-dcline["loss1"][c] )+ dcline["pmaxt"][c]
@@ -935,6 +1023,7 @@ function check_dcline_limits(data::Dict{String,Any})
                 else
                     dcline["loss0"] = new_rate
                 end
+                push!(modified, dcline["index"])
             end
 
             if dcline["loss1"][c] < 0.0
@@ -945,6 +1034,7 @@ function check_dcline_limits(data::Dict{String,Any})
                 else
                     dcline["loss1"] = new_rate
                 end
+                push!(modified, dcline["index"])
             end
 
             if dcline["loss1"][c] >= 1.0
@@ -955,6 +1045,7 @@ function check_dcline_limits(data::Dict{String,Any})
                 else
                     dcline["loss1"] = new_rate
                 end
+                push!(modified, dcline["index"])
             end
 
             if dcline["pmint"][c] <0.0 && dcline["loss1"][c] > 0.0
@@ -964,6 +1055,8 @@ function check_dcline_limits(data::Dict{String,Any})
             end
         end
     end
+
+    return modified
 end
 
 
@@ -1009,18 +1102,29 @@ function check_cost_functions(data::Dict{String,Any})
         error("check_cost_functions does not yet support multinetwork data")
     end
 
+    modified_gen = Set{Int}()
     for (i,gen) in data["gen"]
-        _check_cost_functions(i, gen, "generator")
+        if _check_cost_function(i, gen, "generator")
+            push!(modified_gen, gen["index"])
+        end
     end
+
+    modified_dcline = Set{Int}()
     for (i, dcline) in data["dcline"]
-        _check_cost_functions(i, dcline, "dcline")
+        if _check_cost_function(i, dcline, "dcline")
+            push!(modified_dcline, dcline["index"])
+        end
     end
+
+    return (modified_gen, modified_dcline)
 end
 
 
 ""
-function _check_cost_functions(id, comp, type_name)
+function _check_cost_function(id, comp, type_name)
     #println(comp)
+    modified = false
+
     if "model" in keys(comp) && "cost" in keys(comp)
         if comp["model"] == 1
             if length(comp["cost"]) != 2*comp["ncost"]
@@ -1043,7 +1147,7 @@ function _check_cost_functions(id, comp, type_name)
                     end
                 end
             end
-            _simplify_pwl_cost(id, comp, type_name)
+            modified = _simplify_pwl_cost(id, comp, type_name)
         elseif comp["model"] == 2
             if length(comp["cost"]) != comp["ncost"]
                 error("ncost of $(comp["ncost"]) not consistent with $(length(comp["cost"])) cost values on $(type_name) $(id)")
@@ -1052,6 +1156,8 @@ function _check_cost_functions(id, comp, type_name)
             warn(LOGGER, "Unknown cost model of type $(comp["model"]) on $(type_name) $(id)")
         end
     end
+
+    return modified
 end
 
 
@@ -1089,14 +1195,71 @@ function _simplify_pwl_cost(id, comp, type_name, tolerance = 1e-2)
         warn(LOGGER, "simplifying pwl cost on $(type_name) $(id), $(comp["cost"]) -> $(smpl_cost)")
         comp["cost"] = smpl_cost
         comp["ncost"] = length(smpl_cost)/2
+        return true
     end
+    return false
 end
 
 
+"trims zeros from higher order cost terms"
+function simplify_cost_terms(data::Dict{String,Any})
+    if InfrastructureModels.ismultinetwork(data)
+        networks = data["nw"]
+    else
+        networks = [("0", data)]
+    end
+
+    modified_gen = Set{Int}()
+    modified_dcline = Set{Int}()
+
+    for (i, network) in networks
+        if haskey(network, "gen")
+            for (i, gen) in network["gen"]
+                if haskey(gen, "model") && gen["model"] == 2
+                    ncost = length(gen["cost"])
+                    for j in 1:ncost
+                        if gen["cost"][1] == 0.0
+                            gen["cost"] = gen["cost"][2:end]
+                        else
+                            break
+                        end
+                    end
+                    if length(gen["cost"]) != ncost
+                        gen["ncost"] = length(gen["cost"])
+                        info(LOGGER, "removing $(ncost - gen["ncost"]) cost terms from generator $(i): $(gen["cost"])")
+                        push!(modified_gen, gen["index"])
+                    end
+                end
+            end
+        end
+
+        if haskey(network, "dcline")
+            for (i, dcline) in network["dcline"]
+                if haskey(dcline, "model") && dcline["model"] == 2
+                    ncost = length(dcline["cost"])
+                    for j in 1:ncost
+                        if dcline["cost"][1] == 0.0
+                            dcline["cost"] = dcline["cost"][2:end]
+                        else
+                            break
+                        end
+                    end
+                    if length(dcline["cost"]) != ncost
+                        dcline["ncost"] = length(dcline["cost"])
+                        info(LOGGER, "removing $(ncost - dcline["ncost"]) cost terms from dcline $(i): $(dcline["cost"])")
+                        push!(modified_dcline, dcline["index"])
+                    end
+                end
+            end
+        end
+    end
+
+    return (modified_gen, modified_dcline)
+end
 
 
 "ensures all polynomial costs functions have the same number of terms"
-function standardize_cost_terms(data::Dict{String,Any}; order=1)
+function standardize_cost_terms(data::Dict{String,Any}; order=-1)
     comp_max_order = 1
 
     if InfrastructureModels.ismultinetwork(data)
@@ -1124,22 +1287,20 @@ function standardize_cost_terms(data::Dict{String,Any}; order=1)
             end
         end
 
-        if haskey(network, "dclinecost")
-            if haskey(network, "dcline")
-                for (i, dcline) in network["dcline"]
-                    if haskey(dcline, "model") && dcline["model"] == 2
-                        max_nonzero_index = 1
-                        for i in 1:length(dcline["cost"])
-                            max_nonzero_index = i
-                            if dcline["cost"][i] != 0.0
-                                break
-                            end
+        if haskey(network, "dcline")
+            for (i, dcline) in network["dcline"]
+                if haskey(dcline, "model") && dcline["model"] == 2
+                    max_nonzero_index = 1
+                    for i in 1:length(dcline["cost"])
+                        max_nonzero_index = i
+                        if dcline["cost"][i] != 0.0
+                            break
                         end
-
-                        max_oder = length(dcline["cost"]) - max_nonzero_index + 1
-
-                        comp_max_order = max(comp_max_order, max_oder)
                     end
+
+                    max_oder = length(dcline["cost"]) - max_nonzero_index + 1
+
+                    comp_max_order = max(comp_max_order, max_oder)
                 end
             end
         end
@@ -1149,7 +1310,9 @@ function standardize_cost_terms(data::Dict{String,Any}; order=1)
     if comp_max_order <= order+1
         comp_max_order = order+1
     else
-        warn(LOGGER, "a standard cost order of $(order) was requested but the given data requires an order of at least $(comp_max_order-1)")
+        if order != -1 # if not the default
+            warn(LOGGER, "a standard cost order of $(order) was requested but the given data requires an order of at least $(comp_max_order-1)")
+        end
     end
 
     for (i, network) in networks
@@ -1160,11 +1323,13 @@ function standardize_cost_terms(data::Dict{String,Any}; order=1)
             _standardize_cost_terms(network["dcline"], comp_max_order, "dcline")
         end
     end
+
 end
 
 
 "ensures all polynomial costs functions have at exactly comp_order terms"
 function _standardize_cost_terms(components::Dict{String,Any}, comp_order::Int, cost_comp_name::String)
+    modified = Set{Int}()
     for (i, comp) in components
         if haskey(comp, "model") && comp["model"] == 2 && length(comp["cost"]) != comp_order
             std_cost = [0.0 for i in 1:comp_order]
@@ -1177,9 +1342,11 @@ function _standardize_cost_terms(components::Dict{String,Any}, comp_order::Int, 
             comp["ncost"] = comp_order
             #println("std gen cost: $(comp["cost"])")
 
-            warn(LOGGER, "Updated $(cost_comp_name) cost ($(comp["index"])) to a function of order $(comp_order): $(comp["cost"])")
+            warn(LOGGER, "Updated $(cost_comp_name) $(comp["index"]) cost function with order $(length(current_cost)) to a function of order $(comp_order): $(comp["cost"])")
+            push!(modified, comp["index"])
         end
     end
+    return modified
 end
 
 

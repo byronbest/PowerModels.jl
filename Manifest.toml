@@ -78,7 +78,7 @@ version = "0.10.1"
 
 [[InfrastructureModels]]
 deps = ["Compat", "JuMP", "LinearAlgebra", "MathOptInterface", "Memento"]
-git-tree-sha1 = "29a07e7c85f1c8317d57e7bc6200e96e686e5f75"
+git-tree-sha1 = "f1241d8adb897451a151581b60b695874a3cbc5f"
 repo-rev = "moi"
 repo-url = "https://github.com/lanl-ansi/InfrastructureModels.jl.git"
 uuid = "e8e45514-c753-11e8-2a1b-cd93cb9d98d1"

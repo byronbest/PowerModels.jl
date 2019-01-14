@@ -2,7 +2,23 @@ PowerModels.jl Change Log
 =========================
 
 ### Staged
-- nothing
+- Added support for heterogeneous cost functions
+- Added automatic simplification of cost functions
+- Improved support for polynomial cost functions
+- Updated default cost function to linear when loading PSSE data
+- Cleaned up generator data in Matpower files
+- Cleaned up generator data in PSS(R)E PTI file parse
+- Fix source_id in PSS(R)E PTI parse of buses to be only bus id
+- Fix small PSS(R)E PTI parser errors (unicode handling, reserved characters in comments, error message handling)
+
+### v0.9.2
+- Added tracking of modifications in check_network_data
+- Added validate option to parse_file
+- Added silence() function to suppress info and warn messages
+- Improved support for storage units in summary function
+
+### v0.9.1
+- Fixed print_summary in Julia v1.0
 
 ### v0.9.0
 - Added LPAC cold-start approximation

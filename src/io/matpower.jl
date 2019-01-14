@@ -5,43 +5,14 @@
 #########################################################################
 
 "Parses the matpwer data from either a filename or an IO object"
-function parse_matpower(file::Union{IO, String})
+function parse_matpower(file::Union{IO, String}; validate=true)
     mp_data = parse_matpower_file(file)
     pm_data = matpower_to_powermodels(mp_data)
-    check_network_data(pm_data)
+    if validate
+        check_network_data(pm_data)
+    end
     return pm_data
 end
-
-
-### very generic helper functions ###
-
-"takes a row from a matrix and assigns the values names and types"
-function row_to_typed_dict(row_data, columns)
-    dict_data = Dict{String,Any}()
-    for (i,v) in enumerate(row_data)
-        if i <= length(columns)
-            name, typ = columns[i]
-            dict_data[name] = InfrastructureModels.check_type(typ, v)
-        else
-            dict_data["col_$(i)"] = v
-        end
-    end
-    return dict_data
-end
-
-"takes a row from a matrix and assigns the values names"
-function row_to_dict(row_data, columns)
-    dict_data = Dict{String,Any}()
-    for (i,v) in enumerate(row_data)
-        if i <= length(columns)
-            dict_data[columns[i]] = v
-        else
-            dict_data["col_$(i)"] = v
-        end
-    end
-    return dict_data
-end
-
 
 
 ### Data and functions specific to Matpower format ###
@@ -187,7 +158,7 @@ function parse_matpower_string(data_string::String)
     if haskey(matlab_data, "mpc.bus")
         buses = []
         for bus_row in matlab_data["mpc.bus"]
-            bus_data = row_to_typed_dict(bus_row, mp_bus_columns)
+            bus_data = InfrastructureModels.row_to_typed_dict(bus_row, mp_bus_columns)
             bus_data["index"] = InfrastructureModels.check_type(Int, bus_row[1])
             push!(buses, bus_data)
         end
@@ -199,7 +170,7 @@ function parse_matpower_string(data_string::String)
     if haskey(matlab_data, "mpc.gen")
         gens = []
         for (i, gen_row) in enumerate(matlab_data["mpc.gen"])
-            gen_data = row_to_typed_dict(gen_row, mp_gen_columns)
+            gen_data = InfrastructureModels.row_to_typed_dict(gen_row, mp_gen_columns)
             gen_data["index"] = i
             push!(gens, gen_data)
         end
@@ -211,7 +182,7 @@ function parse_matpower_string(data_string::String)
     if haskey(matlab_data, "mpc.branch")
         branches = []
         for (i, branch_row) in enumerate(matlab_data["mpc.branch"])
-            branch_data = row_to_typed_dict(branch_row, mp_branch_columns)
+            branch_data = InfrastructureModels.row_to_typed_dict(branch_row, mp_branch_columns)
             branch_data["index"] = i
             push!(branches, branch_data)
         end
@@ -223,7 +194,7 @@ function parse_matpower_string(data_string::String)
     if haskey(matlab_data, "mpc.dcline")
         dclines = []
         for (i, dcline_row) in enumerate(matlab_data["mpc.dcline"])
-            dcline_data = row_to_typed_dict(dcline_row, mp_dcline_columns)
+            dcline_data = InfrastructureModels.row_to_typed_dict(dcline_row, mp_dcline_columns)
             dcline_data["index"] = i
             push!(dclines, dcline_data)
         end
@@ -233,7 +204,7 @@ function parse_matpower_string(data_string::String)
     if haskey(matlab_data, "mpc.storage")
         storage = []
         for (i, storage_row) in enumerate(matlab_data["mpc.storage"])
-            storage_data = row_to_typed_dict(storage_row, mp_storage_columns)
+            storage_data = InfrastructureModels.row_to_typed_dict(storage_row, mp_storage_columns)
             storage_data["index"] = i
             push!(storage, storage_data)
         end
@@ -244,7 +215,7 @@ function parse_matpower_string(data_string::String)
     if haskey(matlab_data, "mpc.bus_name")
         bus_names = []
         for (i, bus_name_row) in enumerate(matlab_data["mpc.bus_name"])
-            bus_name_data = row_to_typed_dict(bus_name_row, mp_bus_name_columns)
+            bus_name_data = InfrastructureModels.row_to_typed_dict(bus_name_row, mp_bus_name_columns)
             bus_name_data["index"] = i
             push!(bus_names, bus_name_data)
         end
@@ -294,7 +265,7 @@ function parse_matpower_string(data_string::String)
                 end
                 tbl = []
                 for (i, row) in enumerate(matlab_data[k])
-                    row_data = row_to_dict(row, column_names)
+                    row_data = InfrastructureModels.row_to_dict(row, column_names)
                     row_data["index"] = i
                     push!(tbl, row_data)
                 end
@@ -665,13 +636,15 @@ end
 
 "Export power network data in the matpower format"
 function export_matpower(io::IO, data::Dict{String,Any})
+    data = deepcopy(data)
 
-    is_per_unit = data["per_unit"]
     #convert data to mixed unit
-    if is_per_unit
+    if data["per_unit"]
        make_mixed_units(data)
     end
 
+    # make all costs have the name number of items (to prepare for table export)
+    standardize_cost_terms(data)
 
     # create some useful maps and data structures
     buses = Dict{Int, Dict}()
@@ -953,13 +926,6 @@ function export_matpower(io::IO, data::Dict{String,Any})
             export_extra_data(io, data, key)
         end
     end
-
-    #convert data back to per unit (if necessary)
-    if is_per_unit
-       make_per_unit(data)
-    end
-
-
 end
 
 "Export fields of a component type"
