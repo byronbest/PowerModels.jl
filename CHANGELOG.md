@@ -2,7 +2,7 @@ PowerModels.jl Change Log
 =========================
 
 ### Staged
-- nothing
+- Update syntax to be compatible with JuMP v0.19 / MathOptInterface
 
 ### v0.9.3
 - Added support for heterogeneous cost functions

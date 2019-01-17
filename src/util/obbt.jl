@@ -40,7 +40,7 @@ function constraint_obj_bound(pm::GenericPowerModel, bound)
 
     from_idx = Dict(arc[1] => arc for arc in ref(pm, :arcs_from_dc))
 
-    @constraint(pm.model,
+    JuMP.@constraint(pm.model,
             sum(
                 gen["cost"][1]*var(pm, :pg, i)^2 +
                 gen["cost"][2]*var(pm, :pg, i) +
@@ -82,12 +82,12 @@ function create_modifications(pm::GenericPowerModel,
 end
 
 
-function run_obbt_opf(file::String, solver; kwargs...)
+function run_obbt_opf(file::String, optimizer; kwargs...)
     data = PowerModels.parse_file(file)
-    return run_obbt_opf(data, solver; kwargs...)
+    return run_obbt_opf(data, optimizer; kwargs...)
 end
 
-function run_obbt_opf(data::Dict{String,Any}, solver;
+function run_obbt_opf(data::Dict{String,Any}, optimizer;
     model_constructor = QCWRTriPowerModel,
     max_iter = 100,
     time_limit = 3600.0,
@@ -120,7 +120,7 @@ function run_obbt_opf(data::Dict{String,Any}, solver;
     status_pass = [:LocalOptimal, :Optimal]
 
     # compute initial relative gap between relaxation objective and upper_bound
-    result_relaxation = solve_generic_model(model_relaxation, solver)
+    result_relaxation = solve_generic_model(model_relaxation, optimizer)
     current_relaxation_objective = result_relaxation["objective"]
     if upper_bound < current_relaxation_objective
         error(LOGGER, "the upper bound provided to OBBT is not a valid ACOPF upper bound")
@@ -152,10 +152,10 @@ function run_obbt_opf(data::Dict{String,Any}, solver;
     buses = ids(model_bt, :bus)
     buspairs = ids(model_bt, :buspairs)
 
-    vm_lb = Dict{Any,Float64}( [bus => getlowerbound(vm[bus]) for bus in buses] )
-    vm_ub = Dict{Any,Float64}( [bus => getupperbound(vm[bus]) for bus in buses] )
-    td_lb = Dict{Any,Float64}( [bp => getlowerbound(td[bp]) for bp in buspairs] )
-    td_ub = Dict{Any,Float64}( [bp => getupperbound(td[bp]) for bp in buspairs] )
+    vm_lb = Dict{Any,Float64}( [bus => JuMP.lower_bound(vm[bus]) for bus in buses] )
+    vm_ub = Dict{Any,Float64}( [bus => JuMP.upper_bound(vm[bus]) for bus in buses] )
+    td_lb = Dict{Any,Float64}( [bp => JuMP.lower_bound(td[bp]) for bp in buspairs] )
+    td_ub = Dict{Any,Float64}( [bp => JuMP.upper_bound(td[bp]) for bp in buspairs] )
 
     vm_range_init = sum([vm_ub[bus] - vm_lb[bus] for bus in buses])
     stats["vm_range_init"] = vm_range_init
@@ -204,10 +204,10 @@ function run_obbt_opf(data::Dict{String,Any}, solver;
             start_time = time()
             # vm lower bound solve
             lb = NaN
-            @objective(model_bt.model, Min, vm[bus])
-            result_bt = solve_generic_model(model_bt, solver)
+            JuMP.@objective(model_bt.model, Min, vm[bus])
+            result_bt = solve_generic_model(model_bt, optimizer)
             if (result_bt["status"] == :LocalOptimal || result_bt["status"] == :Optimal)
-                nlb = floor(10.0^precision * getobjectivevalue(model_bt.model))/(10.0^precision)
+                nlb = floor(10.0^precision * JuMP.objective_value(model_bt.model))/(10.0^precision)
                 (nlb > vm_lb[bus]) && (lb = nlb)
             else
                 warn(LOGGER, "BT minimization problem for vm[$bus] errored - change tolerances.")
@@ -216,10 +216,10 @@ function run_obbt_opf(data::Dict{String,Any}, solver;
 
             #vm upper bound solve
             ub = NaN
-            @objective(model_bt.model, Max, vm[bus])
-            result_bt = solve_generic_model(model_bt, solver)
+            JuMP.@objective(model_bt.model, Max, vm[bus])
+            result_bt = solve_generic_model(model_bt, optimizer)
             if (result_bt["status"] == :LocalOptimal || result_bt["status"] == :Optimal)
-                nub = ceil(10.0^precision * getobjectivevalue(model_bt.model))/(10.0^precision)
+                nub = ceil(10.0^precision * JuMP.objective_value(model_bt.model))/(10.0^precision)
                 (nub < vm_ub[bus]) && (ub = nub)
             else
                 warn(LOGGER, "BT maximization problem for vm[$bus] errored - change tolerances.")
@@ -229,7 +229,7 @@ function run_obbt_opf(data::Dict{String,Any}, solver;
             max_vm_iteration_time = max(end_time, max_vm_iteration_time)
 
             # sanity checks
-            (lb > ub) && (warn(LOGGER, "bt lb > ub - adjust tolerances in solver to avoid issue"); continue)
+            (lb > ub) && (warn(LOGGER, "bt lb > ub - adjust tolerances in optimizer to avoid issue"); continue)
             (!isnan(lb) && lb > vm_ub[bus]) && (lb = vm_lb[bus])
             (!isnan(ub) && ub < vm_lb[bus]) && (ub = vm_ub[bus])
             isnan(lb) && (lb = vm_lb[bus])
@@ -264,10 +264,10 @@ function run_obbt_opf(data::Dict{String,Any}, solver;
             start_time = time()
             # td lower bound solve
             lb = NaN
-            @objective(model_bt.model, Min, td[bp])
-            result_bt = solve_generic_model(model_bt, solver)
+            JuMP.@objective(model_bt.model, Min, td[bp])
+            result_bt = solve_generic_model(model_bt, optimizer)
             if (result_bt["status"] == :LocalOptimal || result_bt["status"] == :Optimal)
-                nlb = floor(10.0^precision * getobjectivevalue(model_bt.model))/(10.0^precision)
+                nlb = floor(10.0^precision * JuMP.objective_value(model_bt.model))/(10.0^precision)
                 (nlb > td_lb[bp]) && (lb = nlb)
             else
                 warn(LOGGER, "BT minimization problem for td[$bp] errored - change tolerances")
@@ -276,10 +276,10 @@ function run_obbt_opf(data::Dict{String,Any}, solver;
 
             # td upper bound solve
             ub = NaN
-            @objective(model_bt.model, Max, td[bp])
-            result_bt = solve_generic_model(model_bt, solver)
+            JuMP.@objective(model_bt.model, Max, td[bp])
+            result_bt = solve_generic_model(model_bt, optimizer)
             if (result_bt["status"] == :LocalOptimal || result_bt["status"] == :Optimal)
-                nub = ceil(10.0^precision * getobjectivevalue(model_bt.model))/(10.0^precision)
+                nub = ceil(10.0^precision * JuMP.objective_value(model_bt.model))/(10.0^precision)
                 (nub < td_ub[bp]) && (ub = nub)
             else
                 warn(LOGGER, "BT maximization problem for td[$bp] errored - change tolerances.")
@@ -289,7 +289,7 @@ function run_obbt_opf(data::Dict{String,Any}, solver;
             max_td_iteration_time = max(end_time, max_td_iteration_time)
 
             # sanity checks
-            (lb > ub) && (warn(LOGGER, "bt lb > ub - adjust tolerances in solver to avoid issue"); continue)
+            (lb > ub) && (warn(LOGGER, "bt lb > ub - adjust tolerances in optimizer to avoid issue"); continue)
             (!isnan(lb) && lb > td_ub[bp]) && (lb = td_lb[bp])
             (!isnan(ub) && ub < td_lb[bp]) && (ub = td_ub[bp])
             isnan(lb) && (lb = td_lb[bp])
@@ -331,7 +331,7 @@ function run_obbt_opf(data::Dict{String,Any}, solver;
         td = var(model_bt, :td)
 
         # run the qc relaxation for the updated bounds
-        result_relaxation = run_opf(data, model_constructor, solver)
+        result_relaxation = run_opf(data, model_constructor, optimizer)
 
         if result_relaxation["status"] in status_pass
             current_rel_gap = (upper_bound - result_relaxation["objective"])/upper_bound

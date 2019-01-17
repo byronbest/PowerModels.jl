@@ -11,11 +11,11 @@ function constraint_current_limit(pm::GenericPowerModel{T}, n::Int, c::Int, f_id
 
     p_fr = var(pm, n, c, :p, f_idx)
     q_fr = var(pm, n, c, :q, f_idx)
-    @constraint(pm.model, norm([2*p_fr; 2*q_fr; w_fr*c_rating_a^2-1]) <= w_fr*c_rating_a^2+1)
+    JuMP.@constraint(pm.model, [w_fr*c_rating_a^2+1, 2*p_fr, 2*q_fr, w_fr*c_rating_a^2-1] in JuMP.SecondOrderCone())
 
     p_to = var(pm, n, c, :p, t_idx)
     q_to = var(pm, n, c, :q, t_idx)
-    @constraint(pm.model, norm([2*p_to; 2*q_to; w_to*c_rating_a^2-1]) <= w_to*c_rating_a^2+1)
+    JuMP.@constraint(pm.model, [w_to*c_rating_a^2+1, 2*p_to, 2*q_to, w_to*c_rating_a^2-1] in JuMP.SecondOrderCone())
 end
 
 
@@ -25,7 +25,7 @@ function constraint_voltage(pm::GenericPowerModel{T}, nw::Int, cnd::Int) where T
     WR = var(pm, nw, cnd)[:WR]
     WI = var(pm, nw, cnd)[:WI]
 
-    @SDconstraint(pm.model, [WR WI; -WI WR] >= 0)
+    JuMP.@constraint(pm.model, [WR WI; -WI WR] in JuMP.PSDCone())
 end
 
 
@@ -37,11 +37,11 @@ function variable_voltage(pm::GenericPowerModel{T}; nw::Int=pm.cnw, cnd::Int=pm.
     w_index = 1:length(bus_ids)
     lookup_w_index = Dict((bi,i) for (i,bi) in enumerate(bus_ids))
 
-    WR = var(pm, nw, cnd)[:WR] = @variable(pm.model,
-        [1:length(bus_ids), 1:length(bus_ids)], Symmetric, basename="$(nw)_$(cnd)_WR"
+    WR = var(pm, nw, cnd)[:WR] = JuMP.@variable(pm.model,
+        [1:length(bus_ids), 1:length(bus_ids)], Symmetric, base_name="$(nw)_$(cnd)_WR", start=1.0
     )
-    WI = var(pm, nw, cnd)[:WI] = @variable(pm.model,
-        [1:length(bus_ids), 1:length(bus_ids)], basename="$(nw)_$(cnd)_WI"
+    WI = var(pm, nw, cnd)[:WI] = JuMP.@variable(pm.model,
+        [1:length(bus_ids), 1:length(bus_ids)], base_name="$(nw)_$(cnd)_WI", start=0.0
     )
 
     # bounds on diagonal
@@ -51,14 +51,14 @@ function variable_voltage(pm::GenericPowerModel{T}; nw::Int=pm.cnw, cnd::Int=pm.
         wi_ii = WR[w_idx,w_idx]
 
         if bounded
-            setlowerbound(wr_ii, (bus["vmin"][cnd])^2)
-            setupperbound(wr_ii, (bus["vmax"][cnd])^2)
+            JuMP.set_lower_bound(wr_ii, (bus["vmin"][cnd])^2)
+            JuMP.set_upper_bound(wr_ii, (bus["vmax"][cnd])^2)
 
             #this breaks SCS on the 3 bus exmple
-            #setlowerbound(wi_ii, 0)
-            #setupperbound(wi_ii, 0)
+            #JuMP.set_lower_bound(wi_ii, 0)
+            #JuMP.set_upper_bound(wi_ii, 0)
         else
-             setlowerbound(wr_ii, 0)
+             JuMP.set_lower_bound(wr_ii, 0)
         end
     end
 
@@ -68,11 +68,11 @@ function variable_voltage(pm::GenericPowerModel{T}; nw::Int=pm.cnw, cnd::Int=pm.
         wj_idx = lookup_w_index[j]
 
         if bounded
-            setupperbound(WR[wi_idx, wj_idx], wr_max[(i,j)])
-            setlowerbound(WR[wi_idx, wj_idx], wr_min[(i,j)])
+            JuMP.set_upper_bound(WR[wi_idx, wj_idx], wr_max[(i,j)])
+            JuMP.set_lower_bound(WR[wi_idx, wj_idx], wr_min[(i,j)])
 
-            setupperbound(WI[wi_idx, wj_idx], wi_max[(i,j)])
-            setlowerbound(WI[wi_idx, wj_idx], wi_min[(i,j)])
+            JuMP.set_upper_bound(WI[wi_idx, wj_idx], wi_max[(i,j)])
+            JuMP.set_lower_bound(WI[wi_idx, wj_idx], wi_min[(i,j)])
         end
     end
 
@@ -133,20 +133,20 @@ function variable_voltage(pm::GenericPowerModel{T}; nw::Int=pm.cnw, cnd::Int=pm.
 
     voltage_product_groups =
         var(pm, nw, cnd)[:voltage_product_groups] =
-        Vector{Dict{Symbol, Array{JuMP.Variable, 2}}}(undef, length(groups))
+        Vector{Dict{Symbol, Array{JuMP.VariableRef,2}}}(undef, length(groups))
 
     for (gidx, group) in enumerate(groups)
         n = length(group)
         voltage_product_groups[gidx] = Dict()
         voltage_product_groups[gidx][:WR] =
             var(pm, nw, cnd)[:voltage_product_groups][gidx][:WR] =
-            @variable(pm.model, [1:n, 1:n], Symmetric,
-                basename="$(nw)_$(cnd)_$(gidx)_WR")
+            JuMP.@variable(pm.model, [1:n, 1:n], Symmetric,
+                base_name="$(nw)_$(cnd)_$(gidx)_WR", start=1.0)
 
         voltage_product_groups[gidx][:WI] =
             var(pm, nw, cnd)[:voltage_product_groups][gidx][:WI] =
-            @variable(pm.model, [1:n, 1:n],
-                basename="$(nw)_$(cnd)_$(gidx)_WI")
+            JuMP.@variable(pm.model, [1:n, 1:n],
+                base_name="$(nw)_$(cnd)_$(gidx)_WI", start=0.0)
     end
 
     # voltage product bounds
@@ -170,10 +170,10 @@ function variable_voltage(pm::GenericPowerModel{T}; nw::Int=pm.cnw, cnd::Int=pm.
             wr_ii = WR[group_idx, group_idx]
 
             if bounded
-                setupperbound(wr_ii, (bus["vmax"][cnd])^2)
-                setlowerbound(wr_ii, (bus["vmin"][cnd])^2)
+                JuMP.set_upper_bound(wr_ii, (bus["vmax"][cnd])^2)
+                JuMP.set_lower_bound(wr_ii, (bus["vmin"][cnd])^2)
             else
-                setlowerbound(wr_ii, 0)
+                JuMP.set_lower_bound(wr_ii, 0)
             end
 
             # for non-semidefinite constraints
@@ -189,11 +189,11 @@ function variable_voltage(pm::GenericPowerModel{T}; nw::Int=pm.cnw, cnd::Int=pm.
             i_bus, j_bus = group[i], group[j]
             if (i_bus, j_bus) in ids(pm, nw, :buspairs)
                 if bounded
-                    setupperbound(WR[i, j], wr_max[i_bus, j_bus])
-                    setlowerbound(WR[i, j], wr_min[i_bus, j_bus])
+                    JuMP.set_upper_bound(WR[i, j], wr_max[i_bus, j_bus])
+                    JuMP.set_lower_bound(WR[i, j], wr_min[i_bus, j_bus])
 
-                    setupperbound(WI[i, j], wi_max[i_bus, j_bus])
-                    setlowerbound(WI[i, j], wi_min[i_bus, j_bus])
+                    JuMP.set_upper_bound(WI[i, j], wi_max[i_bus, j_bus])
+                    JuMP.set_lower_bound(WI[i, j], wi_min[i_bus, j_bus])
                 end
 
                 # for non-semidefinite constraints
@@ -232,10 +232,10 @@ function constraint_voltage(pm::GenericPowerModel{T}, nw::Int, cnd::Int) where T
             wi_ji = WI[2, 1]
 
             # standard SOC form (Mosek doesn't like rotated form)
-            @constraint(pm.model, (wr_ii + wr_jj) >= norm([(wr_ii - wr_jj); 2*wr_ij; 2*wi_ij]))
-            @constraint(pm.model, wi_ij == -wi_ji)
+            JuMP.@constraint(pm.model, [(wr_ii + wr_jj), (wr_ii - wr_jj), 2*wr_ij, 2*wi_ij] in JuMP.SecondOrderCone())
+            JuMP.@constraint(pm.model, wi_ij == -wi_ji)
         else
-            @SDconstraint(pm.model, [WR WI; -WI WR] >= 0)
+            JuMP.@constraint(pm.model, [WR WI; -WI WR] in JuMP.PSDCone())
         end
     end
 
@@ -250,8 +250,8 @@ function constraint_voltage(pm::GenericPowerModel{T}, nw::Int, cnd::Int) where T
         overlap_i, overlap_j = overlap_indices(Gi, Gj)
         indices = zip(overlap_i, overlap_j)
         for (idx_i, idx_j) in indices
-            @constraint(pm.model, var_i[:WR][idx_i] == var_j[:WR][idx_j])
-            @constraint(pm.model, var_i[:WI][idx_i] == var_j[:WI][idx_j])
+            JuMP.@constraint(pm.model, var_i[:WR][idx_i] == var_j[:WR][idx_j])
+            JuMP.@constraint(pm.model, var_i[:WI][idx_i] == var_j[:WI][idx_j])
         end
     end
 end

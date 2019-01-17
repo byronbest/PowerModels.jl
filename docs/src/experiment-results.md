@@ -1,7 +1,7 @@
 # PowerModels Experiment Results
-This section presents results of running PowerModel.jl on 
-collections of established power network test cases from 
-[NESTA](https://arxiv.org/abs/1411.0359). This provides validation of the 
+This section presents results of running PowerModel.jl on
+collections of established power network test cases from
+[NESTA](https://arxiv.org/abs/1411.0359). This provides validation of the
 PowerModel.jl as well as a results baseline for these test cases.
 All models were solved using [IPOPT](https://link.springer.com/article/10.1007/s10107-004-0559-y).
 
@@ -9,9 +9,9 @@ All models were solved using [IPOPT](https://link.springer.com/article/10.1007/s
 ## Experiment Design
 This experiment consists of running the following PowerModels commands,
 ```
-result_ac  = run_opf(case, ACPPowerModel, IpoptSolver(tol=1e-6))
-result_soc = run_opf(case, SOCWRPowerModel, IpoptSolver(tol=1e-6))
-result_qc  = run_opf(case, QCWRPowerModel, IpoptSolver(tol=1e-6))
+result_ac  = run_opf(case, ACPPowerModel, JuMP.with_optimizer(Ipopt.Optimizer, tol=1e-6))
+result_soc = run_opf(case, SOCWRPowerModel, JuMP.with_optimizer(Ipopt.Optimizer, tol=1e-6))
+result_qc  = run_opf(case, QCWRPowerModel, JuMP.with_optimizer(Ipopt.Optimizer, tol=1e-6))
 ```
 for each case in the NESTA archive.
 If the value of `result["status"]` is `:LocalOptimal` then the

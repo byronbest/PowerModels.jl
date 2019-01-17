@@ -2,10 +2,13 @@ module PowerModels
 
 using JSON
 using InfrastructureModels
-using MathProgBase
-using JuMP
+import JuMP
 using Compat
 using Memento
+
+import MathOptInterface
+const MOI = MathOptInterface
+const MOIU = MathOptInterface.Utilities
 
 using Compat.LinearAlgebra
 using Compat.SparseArrays
