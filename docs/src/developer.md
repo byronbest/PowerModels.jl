@@ -92,9 +92,9 @@ Following notation of [^1], but recognizing it derives the SOC BFM without shunt
 - Working it out $(U^{mag}_{j})^2 = (U^{mag}_{i})^2 - 2 \cdot(r^{s}_{lij} \cdot P^{s}_{lij} + x^{s}_{lij} \cdot Q^{s}_{lij}) $ + $((r^{s}_{lij})^2 + (x^{s}_{lij})^2)\vert I^{s}_{lij} \vert^2$
 
 Power flow balance w.r.t. branch *total* losses
-- Active power flow:   $P_{lij}$ + $ P_{lji} $ = $  g^{sh}_{lij} \cdot (U^{mag}_{i})^2 + r^{s}_{l} \cdot \vert I^{s}_{lij} \vert^2 +  g^{sh}_{lji} \cdot  (U^{mag}_{j})^2 $
-- Reactive power flow: $Q_{lij}$ + $ Q_{lji} $ = $ -b^{sh}_{lij} \cdot (U^{mag}_{i})^2 + x^{s}_{l} \cdot \vert I^{s}_{lij} \vert^2  - b^{sh}_{lji} \cdot  (U^{mag}_{j})^2 $
-- Current definition: $ \vert S^{s}_{lij} \vert^2  $ $=(U^{mag}_{i})^2 \cdot \vert I^{s}_{lij} \vert^2 $
+- Active power flow:   $P_{lij}$ + $P_{lji} $ = $  g^{sh}_{lij} \cdot (U^{mag}_{i})^2 + r^{s}_{l} \cdot \vert I^{s}_{lij} \vert^2 +  g^{sh}_{lji} \cdot  (U^{mag}_{j})^2 $
+- Reactive power flow: $Q_{lij}$ + $ Q_{lji} $ = $ b^{sh}_{lij} \cdot (U^{mag}_{i})^2 + x^{s}_{l} \cdot \vert I^{s}_{lij} \vert^2  - b^{sh}_{lji} \cdot  (U^{mag}_{j})^2 $
+- Current definition: $ \vert S^{s}_{lij} \vert^2  $ = $ (U^{mag}_{i})^2 \cdot \vert I^{s}_{lij} \vert^2 $
 
 Substitution:
 - Voltage from: $(U^{mag}_{i})^2 \rightarrow w_{i}$
